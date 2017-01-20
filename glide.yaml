@@ -1,0 +1,7 @@
+package: github.com/v4lproik/no-name-server
+import:
+- package: github.com/emicklei/go-restful
+- package: github.com/emicklei/go-restful/swagger
+- package: github.com/yinkozi/no-name-domain
+  repo: git@github.com:Yinkozi/no-name-domain
+  vcs: git
