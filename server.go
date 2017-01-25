@@ -6,13 +6,22 @@ import (
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"github.com/yinkozi/no-name-domain"
-	"strconv"
-	"fmt"
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
+
+	"encoding/json"
 )
+const dbPath = "foo.db"
 
 type ReportResource struct {
-	// normally one would use DAO (data access object)
-	reports map[string]domain.Report
+	db *sql.DB
+}
+
+type ReportDAO struct {
+	Id string
+	TypeEnum string
+
+	Form string
 }
 
 func (r ReportResource) Register(container *restful.Container) {
@@ -32,8 +41,8 @@ func (r ReportResource) Register(container *restful.Container) {
 
 	ws.Route(ws.PUT("/{report-id}").To(r.updateReport).
 	// docs
-		Doc("update a user").
-		Operation("updateUser").
+		Doc("update a report").
+		Operation("updateReport").
 		Param(ws.PathParameter("report-id", "identifier of the report").DataType("string")).
 		ReturnsError(409, "duplicate report-id", nil).
 		Reads(domain.Report{})) // from the request
@@ -55,10 +64,12 @@ func (r ReportResource) Register(container *restful.Container) {
 
 func (u ReportResource) findReport(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("report-id")
-	report := u.reports[id]
-	if len(report.Id) == 0 {
+
+	report := ReadItem(u.db, id)
+
+	if len(report) == 0 {
 		response.AddHeader("Content-Type", "text/plain")
-		response.WriteErrorString(http.StatusNotFound, "404: User could not be found.")
+		response.WriteErrorString(http.StatusNotFound, "404: Report could not be found.")
 		return
 	}
 	response.WriteEntity(report)
@@ -72,11 +83,10 @@ func (r *ReportResource) createReport(request *restful.Request, response *restfu
 		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
-	report.Id = strconv.Itoa(len(r.reports) + 1) // simple id generation
-	r.reports[report.Id] = *report
-	response.WriteHeaderAndEntity(http.StatusCreated, report)
 
-	fmt.Printf("%s", report)
+	StoreItem(r.db, *report)
+
+	response.WriteHeaderAndEntity(http.StatusCreated, report)
 }
 
 func (r *ReportResource) updateReport(request *restful.Request, response *restful.Response) {
@@ -87,23 +97,27 @@ func (r *ReportResource) updateReport(request *restful.Request, response *restfu
 		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
-	r.reports[report.Id] = *report
+	//r.reports[report.Id] = *report
 	response.WriteEntity(report)
 }
 
 func (r *ReportResource) removeReport(request *restful.Request, response *restful.Response) {
-	id := request.PathParameter("report-id")
-	delete(r.reports, id)
+	DeleteItem(r.db, request.PathParameter("report-id"))
 }
 
 func main() {
+	// initi db
+	db := InitDB(dbPath)
+	defer db.Close()
+
+	CreateTable(db)
+
 	// to see what happens in the package, uncomment the following
 	//restful.TraceLogger(log.New(os.Stdout, "[restful] ", log.LstdFlags|log.Lshortfile))
 
 	wsContainer := restful.NewContainer()
-	u := ReportResource{map[string]domain.Report{}}
+	u := ReportResource{db}
 	u.Register(wsContainer)
-
 
 	// Optionally, you can install the Swagger Service which provides a nice Web UI on your REST API
 	// You need to download the Swagger HTML5 assets and change the FilePath location in the config below.
@@ -121,4 +135,143 @@ func main() {
 	log.Printf("start listening on localhost:8080")
 	server := &http.Server{Addr: ":8080", Handler: wsContainer}
 	log.Fatal(server.ListenAndServe())
+}
+
+
+func InitDB(filepath string) *sql.DB {
+	db, err := sql.Open("sqlite3", filepath)
+	if err != nil { panic(err) }
+	if db == nil { panic("db nil") }
+	return db
+}
+
+func StoreItem(db *sql.DB, report domain.Report) {
+	sql_additem := `
+	INSERT OR REPLACE INTO reports(
+		Id,
+		TypeEnum,
+		InsertedDatetime,
+		Form
+	) values(?, ?, CURRENT_TIMESTAMP, ?)
+	`
+
+	stmt, err := db.Prepare(sql_additem)
+	if err != nil { panic(err) }
+	defer stmt.Close()
+
+	formToString, err := json.Marshal(report.Form)
+	if err != nil { panic(err) }
+	defer stmt.Close()
+
+	_, err2 := stmt.Exec(report.Id, report.TypeEnum, formToString)
+	if err2 != nil { panic(err2) }
+}
+
+func ReadItem(db *sql.DB, id string) []domain.Report {
+	sql_readall := `
+	SELECT Id, TypeEnum, Form FROM reports Where Id = ?
+	`
+
+	rows, err := db.Query(sql_readall, id)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	var resultsDAO []ReportDAO
+	var results []domain.Report
+	for rows.Next() {
+		item := ReportDAO{}
+
+		err2 := rows.Scan(&item.Id, &item.TypeEnum, &item.Form)
+		if err2 != nil { panic(err2) }
+
+		resultsDAO = append(resultsDAO, item)
+	}
+
+	for _,result := range resultsDAO {
+		var form domain.Form
+		err3 := json.Unmarshal([]byte(result.Form), &form)
+		if err3 != nil { panic(err3) }
+
+		results = append(results, *domain.NewReport(result.Id, result.TypeEnum, &form))
+	}
+
+	return results
+}
+
+func DeleteItem(db *sql.DB, id string) {
+	sql := `
+	DELETE FROM reports Where Id = ?
+	`
+
+	stmt, err := db.Prepare(sql)
+	if err != nil { panic(err) }
+	defer stmt.Close()
+
+	_, err2 := stmt.Exec(id)
+	if err2 != nil { panic(err2) }
+}
+
+func UpdateItem(db *sql.DB, report domain.Report) {
+	sql := `
+	UPDATE reports SET TypeEnum = ?, Form = ? WHERE Id = ?
+	`
+
+	stmt, err := db.Prepare(sql)
+	if err != nil { panic(err) }
+	defer stmt.Close()
+
+	formToString, err := json.Marshal(report.Form)
+	if err != nil { panic(err) }
+	defer stmt.Close()
+
+	_, err2 := stmt.Exec(report.TypeEnum, formToString, report.Id)
+	if err2 != nil { panic(err2) }
+}
+
+func ReadAllItems(db *sql.DB) []domain.Report {
+	sql_readall := `
+	SELECT Id, TypeEnum, Form FROM reports
+	ORDER BY datetime(InsertedDatetime) DESC
+	`
+
+	rows, err := db.Query(sql_readall)
+	if err != nil { panic(err) }
+	defer rows.Close()
+
+	var resultsDAO []ReportDAO
+	var results []domain.Report
+	for rows.Next() {
+		item := ReportDAO{}
+
+		err2 := rows.Scan(&item.Id, &item.TypeEnum, &item.Form)
+		if err2 != nil { panic(err2) }
+
+		resultsDAO = append(resultsDAO, item)
+	}
+
+	for _,result := range resultsDAO {
+		var form domain.Form
+		err3 := json.Unmarshal([]byte(result.Form), &form)
+		if err3 != nil { panic(err3) }
+
+		results = append(results, *domain.NewReport(result.Id, result.TypeEnum, &form))
+	}
+	return results
+}
+
+func CreateTable(db *sql.DB) {
+	// create table if not exists
+	sql_table := `
+	CREATE TABLE IF NOT EXISTS reports(
+		Id TEXT NOT NULL PRIMARY KEY,
+		TypeEnum TEXT,
+		InsertedDatetime DATETIME,
+		Form TEXT
+	);
+	`
+
+	_, err := db.Exec(sql_table)
+	if err != nil { panic(err) }
 }

@@ -5,3 +5,4 @@ import:
 - package: github.com/yinkozi/no-name-domain
   repo: git@github.com:Yinkozi/no-name-domain
   vcs: git
+- package: 	github.com/mattn/go-sqlite3
