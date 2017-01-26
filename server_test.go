@@ -4,14 +4,24 @@ import (
 	"testing"
 	"github.com/yinkozi/no-name-domain"
 	"database/sql"
+	"os"
 )
 
 const dbpath = "foo_test.db"
 
+var db *sql.DB
+
+func TestMain(t *testing.M) {
+	db = InitDB(dbpath)
+	defer db.Close()
+
+	CreateTable(db)
+
+	os.Exit(t.Run())
+}
+
 func TestInsertingTwoItemsInDatabaseShouldReturnTwoItems(t *testing.T) {
 	// given
-	db, _ := sql.Open("sqlite3", dbpath)
-
 	items := []domain.Report{
 		domain.Report{"1", "TEST", nil},
 		domain.Report{"2", "TEST", nil},
@@ -29,8 +39,6 @@ func TestInsertingTwoItemsInDatabaseShouldReturnTwoItems(t *testing.T) {
 }
 
 func TestDeletingTwoItemsInDatabaseShouldReturnNoMoreItems(t *testing.T) {
-	db, _ := sql.Open("sqlite3", dbpath)
-
 	items := []domain.Report{
 		domain.Report{"1", "TEST", nil},
 		domain.Report{"2", "TEST", nil},
@@ -50,8 +58,6 @@ func TestDeletingTwoItemsInDatabaseShouldReturnNoMoreItems(t *testing.T) {
 }
 
 func TestUpdateTwoItemsInDatabaseShouldReturnTwoUpdatedItems(t *testing.T) {
-	db, _ := sql.Open("sqlite3", dbpath)
-
 	items := []domain.Report{
 		domain.Report{"1", "TEST", nil},
 		domain.Report{"2", "TEST", nil},
