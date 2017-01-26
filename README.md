@@ -1,4 +1,4 @@
-# no-name-server [![CircleCI](https://circleci.com/gh/Yinkozi/no-name.svg?style=svg&circle-token=a18ffbc369b8ddcf8de823bc2a1eeb628509fcb7)](https://circleci.com/gh/Yinkozi/no-name)
+# no-name-server [![CircleCI](https://circleci.com/gh/Yinkozi/no-name-server.svg?style=svg&circle-token=c1d5d6c435da140a7eb83e80b75ff21b61886196)](https://circleci.com/gh/Yinkozi/no-name-server)
 
 
 ## Environment Installation
