@@ -1,4 +1,4 @@
-package: github.com/v4lproik/no-name-server
+package: github.com/yinkozi/no-name-server
 import:
 - package: github.com/emicklei/go-restful
 - package: github.com/emicklei/go-restful/swagger
