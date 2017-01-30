@@ -30,7 +30,7 @@ func Test_create_a_report(t *testing.T) {
 	r.TypeEnum = "TEST"
 
 	//when
-	repo.Store(r)
+	repo.Store(&r)
 
 	//then
 	report, _ := repo.Find("555")
@@ -45,7 +45,7 @@ func Test_delete_a_report(t *testing.T) {
 	clean()
 	r := domain.Report{}
 	r.Id = "556"
-	repo.Store(r)
+	repo.Store(&r)
 
 	//when
 	repo.Delete(r.Id)
@@ -67,8 +67,8 @@ func Test_list_all_reports(t *testing.T) {
 	r2 := domain.Report{}
 	r2.Id = "557"
 
-	repo.Store(r)
-	repo.Store(r2)
+	repo.Store(&r)
+	repo.Store(&r2)
 
 	//when
 	reports, _ := repo.List()
