@@ -6,10 +6,10 @@ import (
 )
 
 type DbHandler interface {
-	Execute(statement string)
-	ExecuteWithParam(statement string, args ...interface{})
-	Query(statement string) Row
-	QueryWithParam(statement string, args ...interface{}) Row
+	Execute(statement string) error
+	ExecuteWithParam(statement string, args ...interface{}) error
+	Query(statement string) (Row, error)
+	QueryWithParam(statement string, args ...interface{}) (Row, error)
 }
 
 type Row interface {
@@ -56,10 +56,7 @@ func (repo *DbReportRepo) Store(report *domain.Report) error{
 
 	params := []interface{}{report.Id, report.TypeEnum, formToString}
 
-	repo.dbHandler.ExecuteWithParam(sql_additem, params...)
-
-	//TODO
-	return nil
+	return repo.dbHandler.ExecuteWithParam(sql_additem, params...)
 }
 
 func (repo *DbReportRepo) Update(report *domain.Report) error {
@@ -68,14 +65,11 @@ func (repo *DbReportRepo) Update(report *domain.Report) error {
 	`
 
 	formToString, err := json.Marshal(report.Form)
-	if err != nil { panic(err) }
+	if err != nil { return err }
 
 	params := []interface{}{report.Id, report.TypeEnum, formToString}
 
-	repo.dbHandler.ExecuteWithParam(sql, params...)
-
-	//TODO
-	return nil
+	return repo.dbHandler.ExecuteWithParam(sql, params...)
 }
 
 func (repo *DbReportRepo) Find(id string) (domain.Report, error) {
@@ -86,7 +80,8 @@ func (repo *DbReportRepo) Find(id string) (domain.Report, error) {
 
 	params := []interface{}{id}
 
-	rows := repo.dbHandler.QueryWithParam(sql_readall, params...)
+	rows, err := repo.dbHandler.QueryWithParam(sql_readall, params...)
+	if err != nil { return newReport, err }
 	rows.Next()
 
 	item := ReportDAO{}
@@ -111,10 +106,7 @@ func (repo *DbReportRepo) Delete(id string) error {
 
 	params := []interface{}{id}
 
-	repo.dbHandler.ExecuteWithParam(sql, params...)
-
-	//TODO
-	return nil
+	return repo.dbHandler.ExecuteWithParam(sql, params...)
 }
 
 func (repo *DbReportRepo) List() ([]domain.Report, error) {
@@ -123,7 +115,8 @@ func (repo *DbReportRepo) List() ([]domain.Report, error) {
 	ORDER BY datetime(InsertedDatetime) DESC
 	`
 
-	rows := repo.dbHandler.Query(sql_readall)
+	rows, err := repo.dbHandler.Query(sql_readall)
+	if err != nil { return nil, err }
 
 	var resultsDAO []ReportDAO
 	var results []domain.Report
@@ -138,7 +131,7 @@ func (repo *DbReportRepo) List() ([]domain.Report, error) {
 	for _,result := range resultsDAO {
 		var form domain.Form
 		err3 := json.Unmarshal([]byte(result.Form), &form)
-		if err3 != nil { panic(err3) }
+		if err3 != nil { return nil, err3 }
 
 		results = append(results, *domain.NewReport(result.Id, result.TypeEnum, &form))
 	}

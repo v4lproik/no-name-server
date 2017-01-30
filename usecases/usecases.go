@@ -21,20 +21,20 @@ type AppInteractor struct {
 	Logger          Logger
 }
 
-func (u *AppInteractor) FindReport(id string) (domain.Report, error) {
-	report, err := u.ReportRepository.Find(id)
+func (interactor *AppInteractor) FindReport(id string) (domain.Report, error) {
+	report, err := interactor.ReportRepository.Find(id)
 	return report, err
 }
 
-func (u *AppInteractor) CreateReport(report *domain.Report) error {
-	return u.ReportRepository.Store(report)
+func (interactor *AppInteractor) CreateReport(report *domain.Report) error {
+	return interactor.ReportRepository.Store(report)
 
 }
 
-func (u *AppInteractor) UpdateReport(report *domain.Report) error {
-	return u.ReportRepository.Update(report)
+func (interactor *AppInteractor) UpdateReport(report *domain.Report) error {
+	return interactor.ReportRepository.Update(report)
 }
 
-func (r *AppInteractor) DeleteReport(id string) error {
-	return r.ReportRepository.Delete(id)
+func (interactor *AppInteractor) DeleteReport(id string) error {
+	return interactor.ReportRepository.Delete(id)
 }

@@ -3,7 +3,6 @@ package infrastructure
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
-	"fmt"
 	"github.com/yinkozi/no-name-server/interfaces/repositories"
 )
 
@@ -22,39 +21,40 @@ func NewSqliteHandler(filepath string) *SqliteHandler {
 	return sqliteHandler
 }
 
-func (handler *SqliteHandler) Execute(statement string) {
-	handler.Conn.Exec(statement)
+func (handler *SqliteHandler) Execute(statement string) error {
+	_, err := handler.Conn.Exec(statement)
+	return err
 }
 
-func (handler *SqliteHandler) ExecuteWithParam(statement string, args ...interface{}) {
+func (handler *SqliteHandler) ExecuteWithParam(statement string, args ...interface{}) error {
 	stmt, err := handler.Conn.Prepare(statement)
-	if err != nil { panic(err) }
+	if err != nil { return err }
 	defer stmt.Close()
 
 	_, err2 := stmt.Exec(args...)
-	if err2 != nil { panic(err2) }
+	if err2 != nil { return err2 }
+
+	return nil
 }
 
-func (handler *SqliteHandler) Query(statement string) repositories.Row {
+func (handler *SqliteHandler) Query(statement string) (repositories.Row, error) {
 	rows, err := handler.Conn.Query(statement)
 	if err != nil {
-		fmt.Println(err)
-		return new(SqliteRow)
+		return new(SqliteRow), err
 	}
 	row := new(SqliteRow)
 	row.Rows = rows
-	return row
+	return row, nil
 }
 
-func (handler *SqliteHandler) QueryWithParam(statement string, args ...interface{}) repositories.Row {
+func (handler *SqliteHandler) QueryWithParam(statement string, args ...interface{}) (repositories.Row, error) {
 	rows, err := handler.Conn.Query(statement, args...)
 	if err != nil {
-		fmt.Println(err)
-		return new(SqliteRow)
+		return new(SqliteRow), err
 	}
 	row := new(SqliteRow)
 	row.Rows = rows
-	return row
+	return row, nil
 }
 
 type SqliteRow struct {
